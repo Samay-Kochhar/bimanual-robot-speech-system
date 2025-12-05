@@ -1,0 +1,36 @@
+[
+  {
+    "tag_name": "entity",
+    "ids_to_tags": {
+      "1": "B-agent",
+      "2": "I-agent",
+      "3": "L-agent",
+      "4": "U-agent",
+      "5": "B-location",
+      "6": "I-location",
+      "7": "L-location",
+      "8": "U-location",
+      "9": "B-object",
+      "10": "I-object",
+      "11": "L-object",
+      "12": "U-object",
+      "0": "O"
+    },
+    "tags_to_ids": {
+      "B-agent": 1,
+      "I-agent": 2,
+      "L-agent": 3,
+      "U-agent": 4,
+      "B-location": 5,
+      "I-location": 6,
+      "L-location": 7,
+      "U-location": 8,
+      "B-object": 9,
+      "I-object": 10,
+      "L-object": 11,
+      "U-object": 12,
+      "O": 0
+    },
+    "num_tags": 13
+  }
+]

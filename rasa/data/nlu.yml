@@ -1,0 +1,71 @@
+version: "3.1"
+nlu:
+
+# --- GREET ---
+- intent: greet
+  examples: |
+    - hello
+    - hi
+    - hey robot
+    - good morning
+    - hey there
+
+# --- AFFIRM ---
+- intent: affirm
+  examples: |
+    - yes
+    - yeah
+    - sure
+    - correct
+    - that's right
+
+# --- DENY ---
+- intent: deny
+  examples: |
+    - no
+    - nope
+    - not really
+    - don't do that
+
+# --- STOP ---
+- intent: stop
+  examples: |
+    - stop
+    - halt
+    - abort
+    - cancel that
+    - wait stop
+    - stop the task
+
+# --- PUT (put object somewhere) ---
+- intent: put
+  examples: |
+    - put the [red](color) [block](object) [on](relation) the [green](color) [cube](object)
+    - place the [yellow](color) [cylinder](object) [in](relation) the [box](object)
+    - put the [long](elongated) [blue](color) [tube](object) [on top of](relation) the [platform](object)
+    - put the [small](quantifier) [red](color) [sphere](object) [next to](relation) the [block](object)
+    - could you put the [green](color) [block](object) [under](relation) the [table](object)
+
+# --- GIVE (give object to me) ---
+- intent: give
+  examples: |
+    - give me the [red](color) [block](object)
+    - hand me the [green](color) [cylinder](object)
+    - pass me the [blue](color) [cube](object)
+    - could you give me that [long](elongated) [tube](object)
+    - give me the [small](quantifier) [sphere](object)
+
+# --- DESCRIBE OBJECT (object properties in scene) ---
+- intent: describe_object
+  examples: |
+    - the [red](color) [block](object)
+    - the [green](color) [cube](object)
+    - the [yellow](color) [cylinder](object)
+    - the [long](elongated) [blue](color) [tube](object)
+    - the [small](quantifier) [red](color) [sphere](object)
+    - the [big](quantifier) [green](color) [box](object)
+    - any [red](color) [object](object)
+    - an [elongated](elongated) [tube](object)
+    - the [block](object) at position [3](xpos), [1](ypos)
+    - the object at x [2](xpos) y [4](ypos)
+

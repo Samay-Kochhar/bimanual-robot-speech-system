@@ -1,0 +1,18 @@
+[
+  {
+    "name": "color",
+    "pattern": "(\\bred\\b|\\bgreen\\b|\\bblue\\b|\\byellow\\b|\\borange\\b|\\bpurple\\b|\\bblack\\b|\\bwhite\\b)"
+  },
+  {
+    "name": "object",
+    "pattern": "(\\bblock\\b|\\bblocks\\b|\\bcube\\b|\\bcubes\\b|\\bcylinder\\b|\\bcylinders\\b|\\bbox\\b|\\bboxes\\b)"
+  },
+  {
+    "name": "quantifier",
+    "pattern": "(\\bthe\\b|\\bthis\\b|\\bthat\\b|\\bany\\b|\\ball\\b|\\bone\\b)"
+  },
+  {
+    "name": "elongated",
+    "pattern": "(\\blong\\b|\\bshort\\b)"
+  }
+]

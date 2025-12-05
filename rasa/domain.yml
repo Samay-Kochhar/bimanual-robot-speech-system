@@ -1,0 +1,85 @@
+version: "3.1"
+
+intents:
+  - greet
+  - affirm
+  - deny
+  - stop
+  - put            # "put the red block on the green cube"
+  - give           # "give me the tomato"
+  - describe_object  # "the long green cylinder", "any red block"
+
+entities:
+  - object
+  - color
+  - relation
+  - quantifier
+  - elongated
+  - xpos
+  - ypos
+
+slots:
+  object:
+    type: text
+    influence_conversation: false
+    mappings:
+      - type: from_entity
+        entity: object
+
+  color:
+    type: text
+    influence_conversation: false
+    mappings:
+      - type: from_entity
+        entity: color
+
+  relation:
+    type: text
+    influence_conversation: false
+    mappings:
+      - type: from_entity
+        entity: relation
+
+  quantifier:
+    type: text
+    influence_conversation: false
+    mappings:
+      - type: from_entity
+        entity: quantifier
+
+  elongated:
+    type: text
+    influence_conversation: false
+    mappings:
+      - type: from_entity
+        entity: elongated
+
+  xpos:
+    type: text
+    influence_conversation: false
+    mappings:
+      - type: from_entity
+        entity: xpos
+
+  ypos:
+    type: text
+    influence_conversation: false
+    mappings:
+      - type: from_entity
+        entity: ypos
+
+responses:
+  utter_greet:
+    - text: "Hello, how can I help with the robot?"
+
+  utter_stop_ack:
+    - text: "Okay, stopping."
+
+  utter_default:
+    - text: "Sorry, I didn't understand that command."
+
+session_config:
+  session_expiration_time: 60
+  carry_over_slots_to_new_session: true
+
+

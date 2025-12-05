@@ -1,0 +1,52 @@
+[
+  {
+    "tag_name": "entity",
+    "ids_to_tags": {
+      "1": "B-color",
+      "2": "I-color",
+      "3": "L-color",
+      "4": "U-color",
+      "5": "B-elongated",
+      "6": "I-elongated",
+      "7": "L-elongated",
+      "8": "U-elongated",
+      "9": "B-object",
+      "10": "I-object",
+      "11": "L-object",
+      "12": "U-object",
+      "13": "B-quantifier",
+      "14": "I-quantifier",
+      "15": "L-quantifier",
+      "16": "U-quantifier",
+      "17": "B-relation",
+      "18": "I-relation",
+      "19": "L-relation",
+      "20": "U-relation",
+      "0": "O"
+    },
+    "tags_to_ids": {
+      "B-color": 1,
+      "I-color": 2,
+      "L-color": 3,
+      "U-color": 4,
+      "B-elongated": 5,
+      "I-elongated": 6,
+      "L-elongated": 7,
+      "U-elongated": 8,
+      "B-object": 9,
+      "I-object": 10,
+      "L-object": 11,
+      "U-object": 12,
+      "B-quantifier": 13,
+      "I-quantifier": 14,
+      "L-quantifier": 15,
+      "U-quantifier": 16,
+      "B-relation": 17,
+      "I-relation": 18,
+      "L-relation": 19,
+      "U-relation": 20,
+      "O": 0
+    },
+    "num_tags": 21
+  }
+]

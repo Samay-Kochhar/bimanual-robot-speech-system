@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual environments
+venv/
+rasa_env/
+.env/
+
+# macOS
+.DS_Store
+
+# Rasa artifacts
+results/
+models/
+
+# Audio temporary files
+*.wav
+*.m4a
+
+# Whisper / Faster-Whisper cache
+whisper_cache/
