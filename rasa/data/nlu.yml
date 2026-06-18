@@ -40,32 +40,40 @@ nlu:
 # --- PUT (put object somewhere) ---
 - intent: put
   examples: |
-    - put the [red](color) [block](object) [on](relation) the [green](color) [cube](object)
-    - place the [yellow](color) [cylinder](object) [in](relation) the [box](object)
-    - put the [long](elongated) [blue](color) [tube](object) [on top of](relation) the [platform](object)
-    - put the [small](quantifier) [red](color) [sphere](object) [next to](relation) the [block](object)
-    - could you put the [green](color) [block](object) [under](relation) the [table](object)
+    - put [the](quantifier) [red](color) [apple](object) [in](relation) [the](quantifier) [blue](color) [bowl](object)
+    - put [one](quantifier) [green](color) [block](object) [on](relation) [the](quantifier) [table](object)
+    - put [this](quantifier) [object](object) [in](relation) [the](quantifier) [box](object)
+    - put [that](quantifier) [object](object) [on](relation) [the](quantifier) [table](object)
+    - put [a](quantifier) [small](size) [red](color) [apple](object) [in](relation) [the](quantifier) [big](size) [bowl](object)
+    - put [the](quantifier) [long](elongated) [blue](color) [tube](object) [on top of](relation) [the](quantifier) [platform](object)
+    - put [the](quantifier) [short](elongated) [cylinder](object) [behind](relation) [the](quantifier) [box](object)
+    - put [the](quantifier) [left](xpos) [block](object) [to the right of](relation) [the](quantifier) [cube](object)
+    - put [the](quantifier) [front](ypos) [apple](object) [in front of](relation) [the](quantifier) [bowl](object)
+    - place [any](quantifier) [green](color) [block](object) [left of](relation) [the](quantifier) [table](object)
+    - place [all](quantifier) [blue](color) [blocks](object) [right of](relation) [the](quantifier) [box](object)
 
 # --- GIVE (give object to me) ---
 - intent: give
   examples: |
-    - give me the [red](color) [block](object)
-    - hand me the [green](color) [cylinder](object)
-    - pass me the [blue](color) [cube](object)
-    - could you give me that [long](elongated) [tube](object)
-    - give me the [small](quantifier) [sphere](object)
+    - give me [the](quantifier) [red](color) [apple](object)
+    - give [one](quantifier) [blue](color) [block](object)
+    - hand me [the](quantifier) [green](color) [cylinder](object)
+    - pass me [a](quantifier) [small](size) [blue](color) [cube](object)
+    - give me [that](quantifier) [long](elongated) [tube](object)
+    - give me [this](quantifier) [object](object)
+    - give me [the](quantifier) [left](xpos) [apple](object)
+    - give [any](quantifier) [short](elongated) [block](object)
 
 # --- DESCRIBE OBJECT (object properties in scene) ---
 - intent: describe_object
   examples: |
-    - the [red](color) [block](object)
-    - the [green](color) [cube](object)
-    - the [yellow](color) [cylinder](object)
-    - the [long](elongated) [blue](color) [tube](object)
-    - the [small](quantifier) [red](color) [sphere](object)
-    - the [big](quantifier) [green](color) [box](object)
-    - any [red](color) [object](object)
-    - an [elongated](elongated) [tube](object)
-    - the [block](object) at position [3](xpos), [1](ypos)
-    - the object at x [2](xpos) y [4](ypos)
+    - [the](quantifier) [red](color) [block](object)
+    - [the](quantifier) [green](color) [cube](object)
+    - [the](quantifier) [long](elongated) [blue](color) [tube](object)
+    - [a](quantifier) [small](size) [red](color) [apple](object)
+    - [the](quantifier) [big](size) [green](color) [box](object)
+    - [any](quantifier) [red](color) [object](object)
+    - [an](quantifier) [elongated](elongated) [tube](object)
+    - [the](quantifier) [left](xpos) [front](ypos) [block](object)
+    - [the](quantifier) [right](xpos) [back](ypos) [object](object)
 

@@ -16,6 +16,7 @@ entities:
   - quantifier
   - elongated
   - xpos
+  - size
   - ypos
 
 slots:
@@ -53,6 +54,13 @@ slots:
     mappings:
       - type: from_entity
         entity: elongated
+
+  size:
+    type: text
+    influence_conversation: false
+    mappings:
+      - type: from_entity
+        entity: size
 
   xpos:
     type: text

@@ -1,22 +1,42 @@
-# Python
+# ROS 2 build outputs
+ros2_ws/build/
+ros2_ws/install/
+ros2_ws/log/
+
+# Python caches
 __pycache__/
-*.pyc
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
 # Virtual environments
+.venv/
 venv/
-rasa_env/
-.env/
+env/
+rasa/bin/
+rasa/include/
+rasa/lib/
+rasa/lib64
+rasa/share/
+rasa/pyvenv.cfg
+rasa.old/rasa_env/
 
-# macOS
+# Rasa generated files/cache/models
+rasa/.rasa/
+rasa/models/
+rasa/results/
+
+# Accidental pip requirement artifacts
+rasa/=3.6,
+rasa/=3.7,
+rasa/=3.8,
+
+# Logs/temp
+*.log
+*.tmp
 .DS_Store
 
-# Rasa artifacts
-results/
-models/
-
-# Audio temporary files
-*.wav
-*.m4a
-
-# Whisper / Faster-Whisper cache
-whisper_cache/
+# Local backups / old project copy
+rasa.old/
+rasa/config.yml.bak
