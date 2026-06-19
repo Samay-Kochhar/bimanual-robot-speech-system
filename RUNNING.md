@@ -1,7 +1,8 @@
-# Running the Phase 1 ROS 2 Speech Skeleton
+# Running the ROS 2 Speech System
 
-This phase uses manual text in place of real ASR. Rasa remains a separate HTTP
-NLU service. TTS and HSM are mock ROS nodes that log what they receive.
+The current ROS 2 Jazzy demonstration uses manual text in place of real ASR.
+Rasa remains a separate HTTP NLU service. TTS is modular, and the HSM can use
+the compatibility topic or the mock action interface.
 
 ## 1. Start Rasa
 
@@ -26,11 +27,14 @@ Open another terminal:
 ```bash
 cd /techfak/user/skochhar/bimanual-robot-speech-system/ros2_ws
 source /opt/ros/jazzy/setup.bash
-colcon build --packages-select asr_node hsm_interfaces nlu_node tts_node
+colcon build --packages-select \
+  asr_node hsm_interfaces nlu_node speech_bringup tts_node \
+  --cmake-args -DPython3_EXECUTABLE=/usr/bin/python3
 source install/setup.bash
 ```
 
-Use the ROS 2 distribution installed on the machine if it is not Jazzy.
+This project is currently tested with ROS 2 Jazzy. Keep the explicit system
+Python argument, especially when a conda environment is active.
 
 ## 3. Start the ROS nodes
 
@@ -168,7 +172,8 @@ Build and test:
 ```bash
 cd /techfak/user/skochhar/bimanual-robot-speech-system/ros2_ws
 source /opt/ros/jazzy/setup.bash
-colcon build --packages-select tts_node
+colcon build --packages-select tts_node \
+  --cmake-args -DPython3_EXECUTABLE=/usr/bin/python3
 source install/setup.bash
 colcon test --packages-select tts_node --event-handlers console_direct+
 colcon test-result --verbose
@@ -214,7 +219,8 @@ Build the interface and dependent nodes:
 ```bash
 cd /techfak/user/skochhar/bimanual-robot-speech-system/ros2_ws
 source /opt/ros/jazzy/setup.bash
-colcon build --packages-select hsm_interfaces nlu_node
+colcon build --packages-select hsm_interfaces nlu_node \
+  --cmake-args -DPython3_EXECUTABLE=/usr/bin/python3
 source install/setup.bash
 ```
 
@@ -275,6 +281,7 @@ ros2 action send_goal /hsm/execute_user_task \
   hsm_interfaces/action/ExecuteUserTask \
   "{xml: '<user_task type=\"stop\"><STATUS origin=\"Submitter\" value=\"initiated\"/></user_task>'}" \
   --feedback
+```
 
 ## Phase 5: demo launch workflow
 
@@ -327,4 +334,10 @@ colcon test-result --verbose
 ```
 
 See `DEMO.md` for the short professor demonstration sequence.
-```
+
+## Current integration boundary
+
+A future ASR node replaces `manual_asr` by publishing recognized final text as
+`std_msgs/msg/String` on `/asr/transcript`. Partial and final hypotheses can be
+represented later with a custom transcript message; no such custom message is
+required for the current demonstration.

@@ -1,7 +1,8 @@
 # Professor Demo
 
-The demo uses manual text instead of real ASR. Rasa must be running before a
-launch file is started.
+The demo uses ROS 2 Jazzy and manual text instead of real ASR. Rasa must be
+running before a launch file is started. See `RUNNING.md` for the full manual
+node workflow and troubleshooting.
 
 ## Preparation
 
@@ -88,6 +89,15 @@ ros2 action list
 
 Topic mode should expose `/hsm/xml`. Action mode should expose
 `/hsm/execute_user_task`.
+
+Run the automated ROS checks before the presentation:
+
+```bash
+colcon test --packages-select \
+  hsm_interfaces nlu_node speech_bringup tts_node \
+  --event-handlers console_direct+
+colcon test-result --verbose
+```
 
 ## Troubleshooting
 

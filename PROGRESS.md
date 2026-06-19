@@ -1,6 +1,6 @@
 # Project Progress
 
-## Completed today
+## Completed phases
 
 - Completed Phase 1 ROS skeleton with manual ASR, Rasa NLU bridge, mock TTS,
   and mock HSM nodes.
@@ -25,20 +25,23 @@
   launch files.
 - Added a deterministic print-TTS demo stack, launch-structure tests, and a
   professor-facing `DEMO.md` walkthrough.
+- Completed Phase 6 documentation cleanup for professor/demo readiness without
+  changing runtime behavior.
 
 ## Current architecture
 
 ```text
-manual_asr -> /asr/transcript -> nlu_node -> Rasa /model/parse
-                                      |-> /tts/speak -> tts_node
-                                      |                   `-> selected backend
-                                      `-> HSM transport
-                                          |-> /hsm/xml topic or action server
-                                      launch: speech_bringup topic/action demo
+manual_asr or future ASR -> /asr/transcript -> nlu_node -> Rasa /model/parse
+                                               |-> /tts/speak -> tts_node
+                                               |                   `-> backend
+                                               `-> generated XML
+                                                   |-> /hsm/xml -> mock_hsm
+                                                   `-> action -> mock_hsm_action
 
 ```
 
 All ROS topic payloads currently use `std_msgs/msg/String`.
+`speech_bringup` starts the topic-mode or action-mode demo stack.
 
 ## Restart tomorrow
 
@@ -62,7 +65,8 @@ rasa train nlu
 ```bash
 cd /techfak/user/skochhar/bimanual-robot-speech-system/ros2_ws
 source /opt/ros/jazzy/setup.bash
-colcon build --packages-select asr_node hsm_interfaces nlu_node tts_node \
+colcon build --packages-select \
+  asr_node hsm_interfaces nlu_node speech_bringup tts_node \
   --cmake-args -DPython3_EXECUTABLE=/usr/bin/python3
 source install/setup.bash
 ```
@@ -134,25 +138,33 @@ Run tests:
 ```bash
 cd /techfak/user/skochhar/bimanual-robot-speech-system/ros2_ws
 source /opt/ros/jazzy/setup.bash
-colcon test --packages-select hsm_interfaces nlu_node tts_node --event-handlers console_direct+
+colcon test --packages-select \
+  hsm_interfaces nlu_node speech_bringup tts_node \
+  --event-handlers console_direct+
 colcon test-result --verbose
 ```
 
 ## Current limitations
 
 - ASR is manual; no microphone or speech recognition is connected.
+- Voice activity detection (VAD) is not implemented.
 - TTS audio depends on an installed lightweight command; otherwise it falls
   back to logging.
 - Kokoro is not integrated and remains an optional future backend.
 - Both HSM transports are mocks; no real robot action is executed.
 - Clarification is single-turn and does not retain dialogue state.
 - `this` and `that` use `pointingTime="1"` until real pointing timestamps exist.
+- Topic payloads use `std_msgs/msg/String`; custom transcript messages can add
+  partial/final state and richer metadata later.
 - Rasa training data is still small and should be expanded using professor
   grammar examples and real ASR transcripts.
 
-## Recommended next phases
+## Next work
 
-1. **Robot HSM integration** — replace the mock action server with the real HSM,
-   confirm action naming, XML contract, feedback, cancellation, and errors.
-2. **Real ASR integration** — replace `manual_asr` with the team ASR
-   node while preserving the `/asr/transcript` interface.
+1. Integrate the teammate's real ASR while preserving `/asr/transcript`.
+2. Add VAD for microphone input and utterance boundaries.
+3. Replace the mock action server with the real robot HSM and validate its
+   action/XML contract.
+4. Replace the placeholder pointing timestamp with real pointing data.
+5. Optionally add custom ROS messages/actions for partial transcripts and
+   richer execution feedback.
