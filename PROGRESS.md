@@ -21,6 +21,10 @@
   and the NLU node can optionally send XML through a ROS 2 action.
 - Added `ExecuteUserTask.action`, a mock HSM action server, graceful unavailable
   server handling, action feedback/results, and transport tests.
+- Completed Phase 5 demo bringup with separate topic-mode and action-mode ROS 2
+  launch files.
+- Added a deterministic print-TTS demo stack, launch-structure tests, and a
+  professor-facing `DEMO.md` walkthrough.
 
 ## Current architecture
 
@@ -30,6 +34,8 @@ manual_asr -> /asr/transcript -> nlu_node -> Rasa /model/parse
                                       |                   `-> selected backend
                                       `-> HSM transport
                                           |-> /hsm/xml topic or action server
+                                      launch: speech_bringup topic/action demo
+
 ```
 
 All ROS topic payloads currently use `std_msgs/msg/String`.
@@ -148,5 +154,5 @@ colcon test-result --verbose
 
 1. **Robot HSM integration** — replace the mock action server with the real HSM,
    confirm action naming, XML contract, feedback, cancellation, and errors.
-2. **Phase 5: real ASR integration** — replace `manual_asr` with the team ASR
+2. **Real ASR integration** — replace `manual_asr` with the team ASR
    node while preserving the `/asr/transcript` interface.

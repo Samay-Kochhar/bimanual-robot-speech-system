@@ -275,4 +275,56 @@ ros2 action send_goal /hsm/execute_user_task \
   hsm_interfaces/action/ExecuteUserTask \
   "{xml: '<user_task type=\"stop\"><STATUS origin=\"Submitter\" value=\"initiated\"/></user_task>'}" \
   --feedback
+
+## Phase 5: demo launch workflow
+
+Build the complete demonstration stack:
+
+```bash
+cd /techfak/user/skochhar/bimanual-robot-speech-system/ros2_ws
+source /opt/ros/jazzy/setup.bash
+colcon build --packages-select \
+  asr_node hsm_interfaces nlu_node speech_bringup tts_node \
+  --cmake-args -DPython3_EXECUTABLE=/usr/bin/python3
+source install/setup.bash
+```
+
+Start Rasa separately in the existing conda environment, then choose one launch
+mode.
+
+Topic mode:
+
+```bash
+ros2 launch speech_bringup topic_demo.launch.py
+```
+
+Action mode:
+
+```bash
+ros2 launch speech_bringup action_demo.launch.py
+```
+
+Both launch files start `nlu_node`, print-mode `tts_node`, and the matching mock
+HSM. Manual ASR remains a separate one-shot command:
+
+```bash
+ros2 run asr_node manual_asr "put the red apple in the blue bowl"
+```
+
+Optional launch overrides:
+
+```bash
+ros2 launch speech_bringup topic_demo.launch.py \
+  rasa_url:=http://localhost:5005/model/parse \
+  min_intent_confidence:=0.70
+```
+
+Test the bringup package:
+
+```bash
+colcon test --packages-select speech_bringup --event-handlers console_direct+
+colcon test-result --verbose
+```
+
+See `DEMO.md` for the short professor demonstration sequence.
 ```
