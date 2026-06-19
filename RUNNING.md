@@ -26,7 +26,7 @@ Open another terminal:
 ```bash
 cd /techfak/user/skochhar/bimanual-robot-speech-system/ros2_ws
 source /opt/ros/jazzy/setup.bash
-colcon build --packages-select asr_node nlu_node tts_node
+colcon build --packages-select asr_node hsm_interfaces nlu_node tts_node
 source install/setup.bash
 ```
 
@@ -126,7 +126,8 @@ Build and run the focused ROS NLU tests:
 ```bash
 cd /techfak/user/skochhar/bimanual-robot-speech-system/ros2_ws
 source /opt/ros/jazzy/setup.bash
-colcon build --packages-select nlu_node
+colcon build --packages-select hsm_interfaces nlu_node \
+  --cmake-args -DPython3_EXECUTABLE=/usr/bin/python3
 source install/setup.bash
 pytest -q \
   src/nlu_node/test/test_command_logic.py \
@@ -201,3 +202,77 @@ ros2 topic pub --once /tts/speak std_msgs/msg/String \
 
 A future `KokoroTTSBackend` can implement the interface in `backends.py` and be
 returned by `select_backend()` without changing `/tts/speak` or the NLU node.
+
+## Phase 4: HSM topic and action modes
+
+The default remains topic mode for compatibility. Action mode uses the
+`hsm_interfaces/action/ExecuteUserTask` action on
+`/hsm/execute_user_task`.
+
+Build the interface and dependent nodes:
+
+```bash
+cd /techfak/user/skochhar/bimanual-robot-speech-system/ros2_ws
+source /opt/ros/jazzy/setup.bash
+colcon build --packages-select hsm_interfaces nlu_node
+source install/setup.bash
+```
+
+Run tests:
+
+```bash
+colcon test --packages-select hsm_interfaces nlu_node \
+  --event-handlers console_direct+
+colcon test-result --verbose
+```
+
+### Topic mode (default)
+
+Run in separate sourced terminals:
+
+```bash
+ros2 run nlu_node mock_hsm
+ros2 run nlu_node nlu_node
+```
+
+The NLU node publishes executable XML to `/hsm/xml`.
+
+### Action mode
+
+Start the mock action server:
+
+```bash
+ros2 run nlu_node mock_hsm_action
+```
+
+Start the NLU node in action mode:
+
+```bash
+ros2 run nlu_node nlu_node --ros-args -p hsm_mode:=action
+```
+
+Start TTS in another terminal, then submit a manual transcript:
+
+```bash
+ros2 run tts_node tts_node --ros-args -p backend:=print
+ros2 run asr_node manual_asr "put the red apple in the blue bowl"
+```
+
+If the action server is not running, the NLU node publishes a spoken error on
+`/tts/speak` instead of crashing. The server wait defaults to one second and can
+be changed with `-p hsm_server_timeout:=2.0`.
+
+Inspect the action directly:
+
+```bash
+ros2 action info /hsm/execute_user_task
+```
+
+Send a direct test goal:
+
+```bash
+ros2 action send_goal /hsm/execute_user_task \
+  hsm_interfaces/action/ExecuteUserTask \
+  "{xml: '<user_task type=\"stop\"><STATUS origin=\"Submitter\" value=\"initiated\"/></user_task>'}" \
+  --feedback
+```

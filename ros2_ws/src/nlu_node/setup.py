@@ -25,6 +25,7 @@ setup(
     entry_points={
         'console_scripts': [
             'mock_hsm = nlu_node.mock_hsm_node:main',
+            'mock_hsm_action = nlu_node.mock_hsm_action_server:main',
             'nlu_node = nlu_node.nlu_ros_node:main',
         ],
     },

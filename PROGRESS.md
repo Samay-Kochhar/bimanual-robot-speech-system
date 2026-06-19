@@ -17,6 +17,10 @@
   `/tts/speak`.
 - Added automatic command discovery, explicit command mode, print fallback,
   runtime failure fallback, and backend-selection tests.
+- Completed Phase 4 compatibility transport: `/hsm/xml` remains the default,
+  and the NLU node can optionally send XML through a ROS 2 action.
+- Added `ExecuteUserTask.action`, a mock HSM action server, graceful unavailable
+  server handling, action feedback/results, and transport tests.
 
 ## Current architecture
 
@@ -24,7 +28,8 @@
 manual_asr -> /asr/transcript -> nlu_node -> Rasa /model/parse
                                       |-> /tts/speak -> tts_node
                                       |                   `-> selected backend
-                                      `-> /hsm/xml   -> mock_hsm
+                                      `-> HSM transport
+                                          |-> /hsm/xml topic or action server
 ```
 
 All ROS topic payloads currently use `std_msgs/msg/String`.
@@ -51,7 +56,8 @@ rasa train nlu
 ```bash
 cd /techfak/user/skochhar/bimanual-robot-speech-system/ros2_ws
 source /opt/ros/jazzy/setup.bash
-colcon build --packages-select asr_node nlu_node tts_node
+colcon build --packages-select asr_node hsm_interfaces nlu_node tts_node \
+  --cmake-args -DPython3_EXECUTABLE=/usr/bin/python3
 source install/setup.bash
 ```
 
@@ -85,6 +91,21 @@ To request an installed command explicitly:
 ros2 run tts_node tts_node --ros-args -p backend:=command -p command:=spd-say
 ```
 
+HSM topic mode remains the default:
+
+```bash
+ros2 run nlu_node mock_hsm
+ros2 run nlu_node nlu_node
+```
+
+For action mode, replace the topic mock with the action mock and set the NLU
+parameter:
+
+```bash
+ros2 run nlu_node mock_hsm_action
+ros2 run nlu_node nlu_node --ros-args -p hsm_mode:=action
+```
+
 ### Manual ASR tests
 
 Interactive:
@@ -107,7 +128,7 @@ Run tests:
 ```bash
 cd /techfak/user/skochhar/bimanual-robot-speech-system/ros2_ws
 source /opt/ros/jazzy/setup.bash
-colcon test --packages-select nlu_node tts_node --event-handlers console_direct+
+colcon test --packages-select hsm_interfaces nlu_node tts_node --event-handlers console_direct+
 colcon test-result --verbose
 ```
 
@@ -117,7 +138,7 @@ colcon test-result --verbose
 - TTS audio depends on an installed lightweight command; otherwise it falls
   back to logging.
 - Kokoro is not integrated and remains an optional future backend.
-- HSM is a logging mock; no robot action is executed.
+- Both HSM transports are mocks; no real robot action is executed.
 - Clarification is single-turn and does not retain dialogue state.
 - `this` and `that` use `pointingTime="1"` until real pointing timestamps exist.
 - Rasa training data is still small and should be expanded using professor
@@ -125,7 +146,7 @@ colcon test-result --verbose
 
 ## Recommended next phases
 
-1. **Phase 4: HSM action interface** — replace or complement `/hsm/xml` with a
-   ROS 2 action client, including execution feedback, cancellation, and errors.
+1. **Robot HSM integration** — replace the mock action server with the real HSM,
+   confirm action naming, XML contract, feedback, cancellation, and errors.
 2. **Phase 5: real ASR integration** — replace `manual_asr` with the team ASR
    node while preserving the `/asr/transcript` interface.
