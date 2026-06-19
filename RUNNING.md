@@ -146,3 +146,58 @@ ros2 run asr_node manual_asr "stop"
 
 The confidence threshold defaults to `0.60` and can be overridden with
 `-p min_intent_confidence:=0.70` when starting `nlu_node`.
+
+## Phase 3: modular TTS
+
+The ROS interface remains `/tts/speak`. The backend is selected inside
+`tts_node`, so the NLU node does not depend on a speech engine.
+
+Backend modes:
+
+- `auto` (default): use the first installed command from `spd-say`,
+  `espeak-ng`, `espeak`, or macOS `say`; otherwise print.
+- `print`: always log the utterance without audio.
+- `command`: use the executable named by the `command` parameter, or fall back
+  to print when it is unavailable.
+- `kokoro`: currently documents the extension point and falls back to print;
+  Kokoro is not installed or required.
+
+Build and test:
+
+```bash
+cd /techfak/user/skochhar/bimanual-robot-speech-system/ros2_ws
+source /opt/ros/jazzy/setup.bash
+colcon build --packages-select tts_node
+source install/setup.bash
+colcon test --packages-select tts_node --event-handlers console_direct+
+colcon test-result --verbose
+```
+
+Run with automatic command discovery:
+
+```bash
+ros2 run tts_node tts_node
+```
+
+Force deterministic print mode:
+
+```bash
+ros2 run tts_node tts_node --ros-args -p backend:=print
+```
+
+Request a specific installed command:
+
+```bash
+ros2 run tts_node tts_node --ros-args \
+  -p backend:=command -p command:=spd-say
+```
+
+Publish a direct TTS test from another sourced ROS terminal:
+
+```bash
+ros2 topic pub --once /tts/speak std_msgs/msg/String \
+  "{data: 'Phase three text to speech test'}"
+```
+
+A future `KokoroTTSBackend` can implement the interface in `backends.py` and be
+returned by `select_backend()` without changing `/tts/speak` or the NLU node.
