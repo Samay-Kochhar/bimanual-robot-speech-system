@@ -41,6 +41,26 @@ def test_put_xml_maps_all_attributes():
     assert target_xml.attrib['color'] == 'blue'
 
 
+def test_put_xml_preserves_all_target_attributes():
+    target = ResolveRequest(
+        count='the',
+        cls='bowl',
+        color='blue',
+        elongated='long',
+        size='small',
+        xpos='right',
+        ypos='back',
+    )
+    root = ElementTree.fromstring(
+        build_put_xml(ResolveRequest(cls='apple'), target, 'in')
+    )
+
+    target_xml = root.find('./target/resolve_request')
+    assert target_xml.attrib['count'] == 'the'
+    for name in ('color', 'elongated', 'size', 'xpos', 'ypos'):
+        assert target_xml.attrib[name] == getattr(target, name)
+
+
 def test_xml_values_are_escaped_safely():
     xml = build_give_xml(
         ResolveRequest(

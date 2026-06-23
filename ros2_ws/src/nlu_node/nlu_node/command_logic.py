@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 
 from .schema import (
+    ATTRIBUTE_VALUE_TYPES,
     CLARIFY,
     normalize,
     QUANTIFIER_ALIASES,
@@ -30,9 +31,22 @@ def _entity_value(entity):
     return str(entity.get('value', '')).strip().lower()
 
 
+def _normalized_entity_name(entity):
+    """Correct descriptive entity labels using professor-grammar values."""
+    name = _entity_name(entity)
+    if name == 'relation':
+        return name
+
+    value = _entity_value(entity)
+    for attribute_name, values in ATTRIBUTE_VALUE_TYPES.items():
+        if value in values:
+            return attribute_name
+    return name
+
+
 def _first_value(entities, name):
     for entity in entities:
-        if _entity_name(entity) == name:
+        if _normalized_entity_name(entity) == name:
             return _entity_value(entity)
     return ''
 
@@ -70,7 +84,7 @@ def _partition_put_entities(entities):
         key=lambda entity: entity.get('start', len(source) + len(target)),
     )
     for entity in ordered:
-        if _entity_name(entity) == 'relation' and not relation:
+        if _normalized_entity_name(entity) == 'relation' and not relation:
             relation = normalize(RELATION_ALIASES, _entity_value(entity))
             after_relation = True
             continue

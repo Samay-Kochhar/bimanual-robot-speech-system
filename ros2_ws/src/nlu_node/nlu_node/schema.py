@@ -46,6 +46,15 @@ QUANTIFIER_ALIASES = {
     'that': 'that',
 }
 
+ATTRIBUTE_VALUE_TYPES = {
+    'color': frozenset({'red', 'green', 'blue', 'yellow'}),
+    'size': frozenset({'small', 'big'}),
+    'elongated': frozenset({'short', 'long', 'elongated'}),
+    'xpos': frozenset({'left', 'right'}),
+    'ypos': frozenset({'front', 'back'}),
+    'quantifier': frozenset(QUANTIFIER_ALIASES),
+}
+
 
 def normalize(mapping, value):
     """Normalize a case-insensitive entity value with an alias mapping."""
