@@ -1,7 +1,9 @@
 from types import SimpleNamespace
 
 from asr_node.asr_runtime import audio_rms
+from asr_node.asr_runtime import cuda_runtime_needs_setup
 from asr_node.asr_runtime import detect_cuda_compute_types
+from asr_node.asr_runtime import detect_cuda_device_count
 from asr_node.asr_runtime import fallback_choices
 from asr_node.asr_runtime import join_segments
 from asr_node.asr_runtime import pcm16_to_float32
@@ -22,6 +24,10 @@ class FakeCTranslate2:
         return {'float16', 'float32'}
 
 
+def test_detect_cuda_device_count():
+    assert detect_cuda_device_count(FakeCTranslate2()) == 1
+
+
 def test_detect_cuda_compute_types():
     assert detect_cuda_compute_types(FakeCTranslate2()) == {
         'float16',
@@ -39,6 +45,14 @@ def test_detect_cuda_can_report_pascal_compute_types():
     assert detect_cuda_compute_types(fake) == {
         'float32', 'int8', 'int8_float32'
     }
+
+
+def test_visible_gpu_without_compute_types_requires_setup():
+    assert cuda_runtime_needs_setup('auto', 1, set()) is True
+    assert cuda_runtime_needs_setup('cuda', 1, set()) is True
+    assert cuda_runtime_needs_setup('cpu', 1, set()) is False
+    assert cuda_runtime_needs_setup('auto', 1, {'int8_float32'}) is False
+    assert cuda_runtime_needs_setup('auto', 0, set()) is False
 
 
 def test_auto_runtime_prefers_medium_cuda_float16():
@@ -75,6 +89,18 @@ def test_medium_cuda_fallback_order():
     assert [(c.model_size, c.device, c.compute_type) for c in choices] == [
         ('medium', 'cuda', 'float16'),
         ('small', 'cuda', 'float16'),
+        ('small', 'cpu', 'int8'),
+    ]
+
+
+def test_pascal_cuda_fallback_order():
+    primary = resolve_runtime(
+        'auto', 'auto', 'auto', {'float32', 'int8', 'int8_float32'}
+    )
+    choices = fallback_choices(primary)
+    assert [(c.model_size, c.device, c.compute_type) for c in choices] == [
+        ('medium', 'cuda', 'int8_float32'),
+        ('small', 'cuda', 'int8_float32'),
         ('small', 'cpu', 'int8'),
     ]
 

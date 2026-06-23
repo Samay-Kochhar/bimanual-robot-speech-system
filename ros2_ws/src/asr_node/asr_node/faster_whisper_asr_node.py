@@ -3,7 +3,9 @@
 import threading
 
 from asr_node.asr_runtime import audio_rms
+from asr_node.asr_runtime import cuda_runtime_needs_setup
 from asr_node.asr_runtime import detect_cuda_compute_types
+from asr_node.asr_runtime import detect_cuda_device_count
 from asr_node.asr_runtime import fallback_choices
 from asr_node.asr_runtime import join_segments
 from asr_node.asr_runtime import pcm16_to_float32
@@ -109,12 +111,23 @@ class FasterWhisperASRNode(Node):
                 'the ASR dependencies for /usr/bin/python3.'
             ) from error
 
+        cuda_device_count = detect_cuda_device_count()
         cuda_compute_types = detect_cuda_compute_types()
         compute_type_text = ', '.join(sorted(cuda_compute_types)) or 'none'
         self.get_logger().info(
-            'CTranslate2 CUDA compute types: '
-            f'{compute_type_text}'
+            f'CTranslate2 CUDA devices: {cuda_device_count}; '
+            f'compute types: {compute_type_text}'
         )
+
+        if cuda_runtime_needs_setup(
+            self.device, cuda_device_count, cuda_compute_types
+        ):
+            raise ASRStartupError(
+                'An NVIDIA GPU is visible, but cuBLAS/cuDNN cannot be loaded. '
+                'Set LD_LIBRARY_PATH to the pip-installed nvidia/cublas/lib '
+                'and nvidia/cudnn/lib directories as shown in RUNNING.md. '
+                'CPU fallback is disabled for this configuration error.'
+            )
 
         try:
             primary = resolve_runtime(

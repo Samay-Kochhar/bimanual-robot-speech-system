@@ -40,11 +40,14 @@ Terminal 3, sourced with ROS and the workspace:
 ros2 run asr_node manual_asr "put the red apple in the blue bowl"
 ```
 
-For the microphone demo, first export the CUDA library path from `RUNNING.md`,
-then replace the command above with:
+For the microphone demo, first run the CUDA verification from `RUNNING.md`.
+Only after it reports the GTX 1060 compute types, replace the command above with:
 
 ```bash
-ros2 run asr_node faster_whisper_asr
+ros2 run asr_node faster_whisper_asr --ros-args \
+  -p model_size:=medium \
+  -p device:=cuda \
+  -p compute_type:=int8_float32
 ```
 
 Speak during a logged 5-second listening window. The first startup downloads

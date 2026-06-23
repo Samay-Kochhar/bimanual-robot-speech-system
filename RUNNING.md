@@ -360,16 +360,14 @@ downloads about 500 MB; `base` downloads about 150 MB.
 Expose the pip-installed CUDA libraries in every ASR terminal:
 
 ```bash
-export LD_LIBRARY_PATH="$(
-  /usr/bin/python3 -c \
-  'import nvidia.cublas.lib, nvidia.cudnn.lib; print(next(iter(nvidia.cublas.lib.__path__)) + ":" + next(iter(nvidia.cudnn.lib.__path__)))'
-):${LD_LIBRARY_PATH:-}"
+export LD_LIBRARY_PATH="$HOME/.local/lib/python3.12/site-packages/nvidia/cublas/lib:$HOME/.local/lib/python3.12/site-packages/nvidia/cudnn/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 ```
 
 On the lab GTX 1060, CTranslate2 supports `int8_float32` rather than `float16`.
-Automatic mode therefore selects `medium`, CUDA, `int8_float32`. Newer GPUs
-that expose FP16 automatically select `medium`, CUDA, `float16`. If CUDA is
-unavailable, automatic mode selects `small`, CPU, `int8`.
+Automatic mode therefore selects `medium`, CUDA, `int8_float32`. If the GPU is
+visible but the CUDA libraries are missing from `LD_LIBRARY_PATH`, startup now
+fails with a setup error instead of silently choosing CPU. The fallback order
+after CUDA is configured is medium CUDA, small CUDA, then small CPU int8.
 
 Check the microphone independently:
 
@@ -378,12 +376,22 @@ arecord -D default -f S16_LE -r 16000 -c 1 -d 3 /tmp/asr-test.wav
 aplay /tmp/asr-test.wav
 ```
 
-Run the real ASR node in a sourced ROS terminal:
+Verify CUDA before downloading a model:
+
+```bash
+/usr/bin/python3 -c 'import ctypes, ctranslate2; ctypes.CDLL("libcublas.so.12"); ctypes.CDLL("libcudnn.so.9"); print("GPU count:", ctranslate2.get_cuda_device_count()); print("CUDA compute types:", sorted(ctranslate2.get_supported_compute_types("cuda")))'
+```
+
+Expected compute types on the GTX 1060 are `float32`, `int8`, and
+`int8_float32`. Then run the real ASR node in a sourced ROS terminal:
 
 ```bash
 source /opt/ros/jazzy/setup.bash
 source /techfak/user/skochhar/bimanual-robot-speech-system/ros2_ws/install/setup.bash
-ros2 run asr_node faster_whisper_asr
+ros2 run asr_node faster_whisper_asr --ros-args \
+  -p model_size:=medium \
+  -p device:=cuda \
+  -p compute_type:=int8_float32
 ```
 
 The node continuously records 5-second mono windows, ignores very quiet audio,

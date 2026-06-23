@@ -15,6 +15,20 @@ class RuntimeChoice:
     compute_type: str
 
 
+def detect_cuda_device_count(ctranslate2_module=None):
+    """Return the number of NVIDIA devices visible to CTranslate2."""
+    if ctranslate2_module is None:
+        try:
+            import ctranslate2 as ctranslate2_module
+        except (ImportError, OSError):
+            return 0
+
+    try:
+        return int(ctranslate2_module.get_cuda_device_count())
+    except (RuntimeError, OSError):
+        return 0
+
+
 def detect_cuda_compute_types(ctranslate2_module=None, library_loader=None):
     """Return compute types exposed by CTranslate2 for the first CUDA GPU."""
     if ctranslate2_module is None:
@@ -30,12 +44,22 @@ def detect_cuda_compute_types(ctranslate2_module=None, library_loader=None):
             return frozenset()
 
     try:
-        if ctranslate2_module.get_cuda_device_count() < 1:
+        if detect_cuda_device_count(ctranslate2_module) < 1:
             return frozenset()
         compute_types = ctranslate2_module.get_supported_compute_types('cuda')
         return frozenset(compute_types)
     except (RuntimeError, OSError):
         return frozenset()
+
+
+def cuda_runtime_needs_setup(requested_device, device_count, compute_types):
+    """Return whether GPU mode is blocked by missing runtime libraries."""
+    requested_device = str(requested_device).strip().lower()
+    return (
+        requested_device in {'auto', 'cuda'}
+        and int(device_count) > 0
+        and not compute_types
+    )
 
 
 def preferred_cuda_compute_type(compute_types):
