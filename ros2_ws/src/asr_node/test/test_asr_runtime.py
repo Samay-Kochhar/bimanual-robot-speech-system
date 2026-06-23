@@ -6,7 +6,10 @@ from asr_node.asr_runtime import detect_cuda_compute_types
 from asr_node.asr_runtime import detect_cuda_device_count
 from asr_node.asr_runtime import fallback_choices
 from asr_node.asr_runtime import join_segments
+from asr_node.asr_runtime import normalize_mode
 from asr_node.asr_runtime import pcm16_to_float32
+from asr_node.asr_runtime import PushToTalkState
+from asr_node.asr_runtime import PushToTalkStateMachine
 from asr_node.asr_runtime import resolve_runtime
 
 import numpy as np
@@ -53,6 +56,39 @@ def test_visible_gpu_without_compute_types_requires_setup():
     assert cuda_runtime_needs_setup('cpu', 1, set()) is False
     assert cuda_runtime_needs_setup('auto', 1, {'int8_float32'}) is False
     assert cuda_runtime_needs_setup('auto', 0, set()) is False
+
+
+def test_supported_modes_are_normalized():
+    assert normalize_mode(' continuous ') == 'continuous'
+    assert normalize_mode('PUSH_TO_TALK') == 'push_to_talk'
+
+
+def test_unsupported_mode_is_rejected():
+    with pytest.raises(ValueError, match='mode must be one of'):
+        normalize_mode('streaming')
+
+
+def test_push_to_talk_state_cycle_supports_multiple_commands():
+    state = PushToTalkStateMachine()
+    assert state.state is PushToTalkState.WAITING
+
+    for _ in range(2):
+        state.start_recording()
+        assert state.state is PushToTalkState.RECORDING
+        state.stop_recording()
+        assert state.state is PushToTalkState.PROCESSING
+        state.finish_processing()
+        assert state.state is PushToTalkState.WAITING
+
+
+def test_push_to_talk_rejects_invalid_transitions():
+    state = PushToTalkStateMachine()
+    with pytest.raises(RuntimeError, match='not recording'):
+        state.stop_recording()
+
+    state.start_recording()
+    with pytest.raises(RuntimeError, match='not waiting'):
+        state.start_recording()
 
 
 def test_auto_runtime_prefers_medium_cuda_float16():

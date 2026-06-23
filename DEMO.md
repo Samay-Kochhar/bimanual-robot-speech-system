@@ -45,13 +45,15 @@ Only after it reports the GTX 1060 compute types, replace the command above with
 
 ```bash
 ros2 run asr_node faster_whisper_asr --ros-args \
+  -p mode:=push_to_talk \
   -p model_size:=medium \
   -p device:=cuda \
   -p compute_type:=int8_float32
 ```
 
-Speak during a logged 5-second listening window. The first startup downloads
-the selected model, so complete that download before the presentation.
+Press Enter to start, speak the command, then press Enter again to stop. Show
+that exactly one final transcript is published. The node returns to its prompt
+for another command. Complete the first model download before the presentation.
 
 Show that the NLU result, TTS text, and XML received by `mock_hsm` all appear in
 the launch terminal.

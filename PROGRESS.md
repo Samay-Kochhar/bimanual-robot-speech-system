@@ -32,6 +32,10 @@
 - Added automatic CTranslate2 runtime selection, CUDA/CPU fallbacks, clear
   model/device logs, graceful dependency and microphone errors, and
   hardware-independent tests.
+- Added push-to-talk demo mode: Enter starts recording, Enter stops it, one final
+  transcript is processed, and the node waits for the next command.
+- Preserved continuous fixed-window mode and added hardware-independent mode and
+  state-transition tests.
 
 ## Current architecture
 
@@ -125,7 +129,11 @@ Real microphone ASR uses the system Python user-site dependencies documented in
 `RUNNING.md`. Start it separately from the bringup launch:
 
 ```bash
-ros2 run asr_node faster_whisper_asr
+ros2 run asr_node faster_whisper_asr --ros-args \
+  -p mode:=push_to_talk \
+  -p model_size:=medium \
+  -p device:=cuda \
+  -p compute_type:=int8_float32
 ```
 
 The unchanged manual fallback remains available:
@@ -158,7 +166,8 @@ colcon test-result --verbose
 
 ## Current limitations
 
-- Microphone ASR uses fixed 5-second windows and publishes final text only.
+- Microphone ASR supports continuous fixed 5-second windows and interactive
+  push-to-talk; both publish final text only.
 - Voice activity detection (VAD) is not implemented.
 - The GTX 1060 uses CUDA `int8_float32`; it does not expose FP16 through
   CTranslate2.

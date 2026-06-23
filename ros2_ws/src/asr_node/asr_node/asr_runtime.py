@@ -1,9 +1,54 @@
 """Runtime selection and audio helpers for Faster-Whisper ASR."""
 
 from dataclasses import dataclass
+from enum import Enum
 
 
 SUPPORTED_DEVICES = {'auto', 'cpu', 'cuda'}
+SUPPORTED_MODES = {'continuous', 'push_to_talk'}
+
+
+class PushToTalkState(Enum):
+    """States used by the push-to-talk interaction loop."""
+
+    WAITING = 'waiting'
+    RECORDING = 'recording'
+    PROCESSING = 'processing'
+
+
+class PushToTalkStateMachine:
+    """Validate push-to-talk transitions independently of hardware."""
+
+    def __init__(self):
+        """Start in the waiting-for-first-Enter state."""
+        self.state = PushToTalkState.WAITING
+
+    def start_recording(self):
+        """Move from waiting to recording."""
+        if self.state is not PushToTalkState.WAITING:
+            raise RuntimeError('push-to-talk is not waiting to record')
+        self.state = PushToTalkState.RECORDING
+
+    def stop_recording(self):
+        """Move from recording to processing."""
+        if self.state is not PushToTalkState.RECORDING:
+            raise RuntimeError('push-to-talk is not recording')
+        self.state = PushToTalkState.PROCESSING
+
+    def finish_processing(self):
+        """Return to waiting after one recording is processed."""
+        if self.state is not PushToTalkState.PROCESSING:
+            raise RuntimeError('push-to-talk is not processing')
+        self.state = PushToTalkState.WAITING
+
+
+def normalize_mode(mode):
+    """Validate and normalize an ASR interaction mode."""
+    normalized = str(mode).strip().lower()
+    if normalized not in SUPPORTED_MODES:
+        supported = ', '.join(sorted(SUPPORTED_MODES))
+        raise ValueError(f'mode must be one of: {supported}')
+    return normalized
 
 
 @dataclass(frozen=True)

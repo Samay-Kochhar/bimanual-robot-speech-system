@@ -1,5 +1,6 @@
 """ROS 2 microphone ASR node backed by Faster-Whisper."""
 
+import queue
 import threading
 
 from asr_node.asr_runtime import audio_rms
@@ -8,7 +9,9 @@ from asr_node.asr_runtime import detect_cuda_compute_types
 from asr_node.asr_runtime import detect_cuda_device_count
 from asr_node.asr_runtime import fallback_choices
 from asr_node.asr_runtime import join_segments
+from asr_node.asr_runtime import normalize_mode
 from asr_node.asr_runtime import pcm16_to_float32
+from asr_node.asr_runtime import PushToTalkStateMachine
 from asr_node.asr_runtime import resolve_runtime
 
 import rclpy
@@ -21,12 +24,13 @@ class ASRStartupError(RuntimeError):
 
 
 class FasterWhisperASRNode(Node):
-    """Record fixed microphone windows and publish final transcripts."""
+    """Record microphone audio and publish final transcripts."""
 
     def __init__(self):
         """Initialize parameters, model, microphone, and worker."""
         super().__init__('faster_whisper_asr')
 
+        self.declare_parameter('mode', 'continuous')
         self.declare_parameter('model_size', 'auto')
         self.declare_parameter('device', 'auto')
         self.declare_parameter('compute_type', 'auto')
@@ -45,6 +49,9 @@ class FasterWhisperASRNode(Node):
         self._model = None
         self._runtime = None
         self._worker = None
+        self._keyboard_worker = None
+        self._enter_events = queue.Queue()
+        self._push_to_talk_state = PushToTalkStateMachine()
 
         self._read_parameters()
         self._load_dependencies_and_model()
@@ -52,6 +59,7 @@ class FasterWhisperASRNode(Node):
 
         self.get_logger().info(
             'Faster-Whisper ASR ready: '
+            f'mode={self.mode}, '
             f'model={self._runtime.model_size}, '
             f'device={self._runtime.device}, '
             f'compute_type={self._runtime.compute_type}, '
@@ -59,14 +67,27 @@ class FasterWhisperASRNode(Node):
             f'topic=/asr/transcript'
         )
 
+        if self.mode == 'push_to_talk':
+            self._keyboard_worker = threading.Thread(
+                target=self._keyboard_input_loop,
+                name='faster-whisper-keyboard',
+                daemon=True,
+            )
+            self._keyboard_worker.start()
+
         self._worker = threading.Thread(
-            target=self._recording_loop,
+            target=self._worker_loop,
             name='faster-whisper-asr-worker',
             daemon=True,
         )
         self._worker.start()
 
     def _read_parameters(self):
+        try:
+            self.mode = normalize_mode(self.get_parameter('mode').value)
+        except ValueError as error:
+            raise ASRStartupError(str(error)) from error
+
         self.model_size = self.get_parameter('model_size').value
         self.device = self.get_parameter('device').value
         self.compute_type = self.get_parameter('compute_type').value
@@ -207,19 +228,22 @@ class FasterWhisperASRNode(Node):
                 devices.append(f'{index}:{info.get("name", "unknown")}')
         return ', '.join(devices) if devices else 'none'
 
-    def _record_once(self):
-        frames_per_buffer = 1024
-        frame_count = int(
-            self.sample_rate * self.record_seconds / frames_per_buffer
-        )
-        stream = self._audio.open(
+    def _open_input_stream(self):
+        return self._audio.open(
             format=self._pyaudio.paInt16,
             channels=1,
             rate=self.sample_rate,
             input=True,
             input_device_index=self._selected_device_index(),
-            frames_per_buffer=frames_per_buffer,
+            frames_per_buffer=1024,
         )
+
+    def _record_once(self):
+        frames_per_buffer = 1024
+        frame_count = int(
+            self.sample_rate * self.record_seconds / frames_per_buffer
+        )
+        stream = self._open_input_stream()
         frames = []
         try:
             for _ in range(frame_count):
@@ -233,7 +257,96 @@ class FasterWhisperASRNode(Node):
             stream.close()
         return pcm16_to_float32(b''.join(frames))
 
-    def _recording_loop(self):
+    def _keyboard_input_loop(self):
+        while not self._stop_event.is_set():
+            try:
+                input()
+            except EOFError:
+                self.get_logger().error(
+                    'Push-to-talk requires an interactive terminal.'
+                )
+                self._stop_event.set()
+                rclpy.try_shutdown()
+                return
+            self._enter_events.put(True)
+
+    def _wait_for_enter(self):
+        while rclpy.ok() and not self._stop_event.is_set():
+            try:
+                self._enter_events.get(timeout=0.1)
+                return True
+            except queue.Empty:
+                pass
+        return False
+
+    def _record_until_enter(self):
+        stream = self._open_input_stream()
+        frames = []
+        try:
+            while rclpy.ok() and not self._stop_event.is_set():
+                try:
+                    self._enter_events.get_nowait()
+                    break
+                except queue.Empty:
+                    frames.append(
+                        stream.read(1024, exception_on_overflow=False)
+                    )
+        finally:
+            stream.stop_stream()
+            stream.close()
+        return pcm16_to_float32(b''.join(frames))
+
+    def _process_samples(self, samples):
+        rms = audio_rms(samples)
+        if rms < self.min_audio_rms:
+            self.get_logger().info(
+                f'Audio below RMS threshold ({rms:.4f}); not transcribing.'
+            )
+            return
+
+        self.get_logger().info(
+            'Transcribing audio: '
+            f'{len(samples) / self.sample_rate:.1f}s'
+        )
+        try:
+            segments, info = self._model.transcribe(
+                samples,
+                language=self.language or None,
+                beam_size=self.beam_size,
+                word_timestamps=False,
+                condition_on_previous_text=False,
+                vad_filter=False,
+            )
+            text = join_segments(segments)
+        except Exception as error:
+            self.get_logger().error(
+                'Faster-Whisper transcription failed: '
+                f'{type(error).__name__}: {error}'
+            )
+            return
+
+        if self._stop_event.is_set():
+            return
+
+        if not text:
+            self.get_logger().info('No speech was recognized.')
+            return
+
+        message = String()
+        message.data = text
+        self.publisher.publish(message)
+        language = getattr(info, 'language', self.language or 'unknown')
+        self.get_logger().info(
+            f'Published final transcript ({language}): {text}'
+        )
+
+    def _worker_loop(self):
+        if self.mode == 'push_to_talk':
+            self._push_to_talk_loop()
+        else:
+            self._continuous_recording_loop()
+
+    def _continuous_recording_loop(self):
         while rclpy.ok() and not self._stop_event.is_set():
             self.get_logger().info(
                 f'Listening for {self.record_seconds:.1f} seconds...'
@@ -250,45 +363,33 @@ class FasterWhisperASRNode(Node):
             if self._stop_event.is_set():
                 return
 
-            rms = audio_rms(samples)
-            if rms < self.min_audio_rms:
-                self.get_logger().info(
-                    f'Audio below RMS threshold ({rms:.4f}); not transcribing.'
-                )
-                continue
+            self._process_samples(samples)
 
+    def _push_to_talk_loop(self):
+        while rclpy.ok() and not self._stop_event.is_set():
+            self.get_logger().info('Press Enter to start recording.')
+            if not self._wait_for_enter():
+                return
+
+            self._push_to_talk_state.start_recording()
             self.get_logger().info(
-                'Transcribing audio: '
-                f'{len(samples) / self.sample_rate:.1f}s'
+                'Recording. Press Enter again to stop.'
             )
             try:
-                segments, info = self._model.transcribe(
-                    samples,
-                    language=self.language or None,
-                    beam_size=self.beam_size,
-                    word_timestamps=False,
-                    condition_on_previous_text=False,
-                    vad_filter=False,
-                )
-                text = join_segments(segments)
+                samples = self._record_until_enter()
             except Exception as error:
                 self.get_logger().error(
-                    'Faster-Whisper transcription failed: '
+                    'Microphone recording failed; stopping ASR worker: '
                     f'{type(error).__name__}: {error}'
                 )
-                continue
+                return
 
-            if not text:
-                self.get_logger().info('No speech was recognized.')
-                continue
+            if self._stop_event.is_set():
+                return
 
-            message = String()
-            message.data = text
-            self.publisher.publish(message)
-            language = getattr(info, 'language', self.language or 'unknown')
-            self.get_logger().info(
-                f'Published final transcript ({language}): {text}'
-            )
+            self._push_to_talk_state.stop_recording()
+            self._process_samples(samples)
+            self._push_to_talk_state.finish_processing()
 
     def destroy_node(self):
         """Stop the worker and release microphone resources."""

@@ -397,6 +397,28 @@ ros2 run asr_node faster_whisper_asr --ros-args \
 The node continuously records 5-second mono windows, ignores very quiet audio,
 and publishes each final transcript to `/asr/transcript`. Verify it separately:
 
+### Push-to-talk GPU mode
+
+Push-to-talk keeps the same model and ROS topic API but records only between two
+Enter presses. Run it from an interactive terminal:
+
+```bash
+export LD_LIBRARY_PATH="$HOME/.local/lib/python3.12/site-packages/nvidia/cublas/lib:$HOME/.local/lib/python3.12/site-packages/nvidia/cudnn/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+source /opt/ros/jazzy/setup.bash
+source /techfak/user/skochhar/bimanual-robot-speech-system/ros2_ws/install/setup.bash
+ros2 run asr_node faster_whisper_asr --ros-args \
+  -p mode:=push_to_talk \
+  -p model_size:=medium \
+  -p device:=cuda \
+  -p compute_type:=int8_float32
+```
+
+Press Enter once to start recording, speak, and press Enter again to stop. The
+node applies the RMS silence threshold, publishes at most one final transcript,
+and returns to the first-Enter prompt for the next command. Ctrl+C stops the ROS
+node safely. The default `mode:=continuous` preserves repeated fixed 5-second
+windows.
+
 ```bash
 ros2 topic echo /asr/transcript
 ```
