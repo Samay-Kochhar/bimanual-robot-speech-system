@@ -15,7 +15,7 @@ setup(
     zip_safe=True,
     maintainer='skochhar',
     maintainer_email='skochhar@todo.todo',
-    description='TODO: Package description',
+    description='Manual and Faster-Whisper ROS 2 ASR transcript publishers',
     license='TODO: License declaration',
     extras_require={
         'test': [
@@ -24,6 +24,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
+            'faster_whisper_asr = asr_node.faster_whisper_asr_node:main',
             'manual_asr = asr_node.manual_asr_node:main',
         ],
     },

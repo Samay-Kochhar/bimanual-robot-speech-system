@@ -1,8 +1,9 @@
 # Professor Demo
 
-The demo uses ROS 2 Jazzy and manual text instead of real ASR. Rasa must be
-running before a launch file is started. See `RUNNING.md` for the full manual
-node workflow and troubleshooting.
+The demo uses ROS 2 Jazzy. It can use Faster-Whisper microphone ASR or the
+unchanged `manual_asr` fallback. Rasa must be running before a launch file is
+started. See `RUNNING.md` for ASR installation, model sizes, and complete
+troubleshooting.
 
 ## Preparation
 
@@ -38,6 +39,16 @@ Terminal 3, sourced with ROS and the workspace:
 ```bash
 ros2 run asr_node manual_asr "put the red apple in the blue bowl"
 ```
+
+For the microphone demo, first export the CUDA library path from `RUNNING.md`,
+then replace the command above with:
+
+```bash
+ros2 run asr_node faster_whisper_asr
+```
+
+Speak during a logged 5-second listening window. The first startup downloads
+the selected model, so complete that download before the presentation.
 
 Show that the NLU result, TTS text, and XML received by `mock_hsm` all appear in
 the launch terminal.
@@ -94,7 +105,7 @@ Run the automated ROS checks before the presentation:
 
 ```bash
 colcon test --packages-select \
-  hsm_interfaces nlu_node speech_bringup tts_node \
+  asr_node hsm_interfaces nlu_node speech_bringup tts_node \
   --event-handlers console_direct+
 colcon test-result --verbose
 ```
@@ -108,3 +119,5 @@ colcon test-result --verbose
   `-DPython3_EXECUTABLE=/usr/bin/python3` build argument.
 - The launch files intentionally use print-mode TTS, so no audio dependency is
   required for the demonstration.
+- If microphone ASR is unavailable, stop it and use `manual_asr`; both publish
+  the same `/asr/transcript` interface.

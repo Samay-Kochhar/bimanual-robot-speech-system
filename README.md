@@ -1,19 +1,17 @@
 # Bimanual Robot Speech System
 
 This repository contains a modular ROS 2 Jazzy speech-command pipeline for a
-bimanual robot. The current demonstration uses typed transcripts and mock HSM
-components, while keeping the interfaces needed for future microphone ASR and
-the real robot controller.
+bimanual robot. It supports microphone transcription with Faster-Whisper or
+typed fallback transcripts, while the HSM components remain mocks until the
+real robot controller is connected.
 
 ## Architecture
 
 ```text
-manual_asr or future real ASR
-              |
-              v
-    /asr/transcript (String)
-              |
-              v
+microphone -> faster_whisper_asr ----+
+                                     |-> /asr/transcript (String)
+typed text -> manual_asr ------------+             |
+                                                   v
            nlu_node -------- HTTP --------> Rasa /model/parse
               |                                 |
               |<-------- intent/entities -------'
@@ -30,10 +28,10 @@ topic-mode and action-mode demo stacks.
 
 ## Components
 
-- `manual_asr`: temporary fake ASR publisher. It publishes typed final
-  transcripts to `/asr/transcript`.
-- Future real ASR: replaces `manual_asr` and publishes recognized final text to
-  the same `/asr/transcript` topic.
+- `faster_whisper_asr`: records fixed microphone windows, transcribes them with
+  Faster-Whisper, and publishes final text to `/asr/transcript`.
+- `manual_asr`: unchanged typed fallback publisher for testing without audio or
+  a downloaded ASR model.
 - `nlu_node`: the Rasa/XML brain. It calls Rasa at `/model/parse`, validates the
   interpreted command, asks clarification questions when required information
   is missing, generates XML, and selects the configured HSM transport.
@@ -108,18 +106,20 @@ ROS and the workspace sourced in every ROS terminal. See [DEMO.md](DEMO.md) for
 the presentation sequence and [RUNNING.md](RUNNING.md) for complete setup,
 testing, and troubleshooting commands.
 
-## Future ASR integration
+## ASR integration
 
-A real ASR node only needs to publish each recognized final transcript as
-`std_msgs/msg/String` on `/asr/transcript`; the NLU, TTS, and HSM components do
-not need to change. If incremental recognition is added later, a custom
-transcript message can distinguish partial and final hypotheses and carry
-additional metadata.
+The real ASR node and `manual_asr` publish the same `std_msgs/msg/String`
+interface, so the NLU, TTS, and HSM components are independent of the input
+source. The current microphone node records fixed-duration windows and emits
+final transcripts only. A later custom transcript message can distinguish
+partial and final hypotheses and carry additional metadata.
 
 ## Current limitations
 
-- There is no real microphone ASR yet; `manual_asr` is the test input.
+- ASR uses fixed recording windows and final transcripts only.
 - Voice activity detection (VAD) is not implemented.
+- The first ASR run downloads the selected model; medium is about 1.6 GB and
+  small is about 500 MB.
 - Both HSM implementations are mocks; no real robot HSM is connected.
 - `this` and `that` use a nonzero placeholder `pointingTime` value.
 - ROS topic payloads use `std_msgs/msg/String`; richer custom messages can be
@@ -129,8 +129,8 @@ additional metadata.
 
 ## Next work
 
-1. Integrate the teammate's real ASR while preserving `/asr/transcript`.
-2. Add VAD around microphone capture and final-transcript publication.
+1. Add VAD around microphone capture and final-transcript publication.
+2. Add incremental/streaming ASR feedback if required.
 3. Connect and validate the real robot HSM action server.
 4. Replace the placeholder pointing timestamp with real pointing data.
 5. Optionally add custom ROS messages/actions for partial transcripts and richer

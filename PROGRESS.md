@@ -27,16 +27,19 @@
   professor-facing `DEMO.md` walkthrough.
 - Completed Phase 6 documentation cleanup for professor/demo readiness without
   changing runtime behavior.
+- Completed Phase 7 fixed-window microphone ASR with Faster-Whisper while
+  preserving `manual_asr` as the fallback input path.
+- Added automatic CTranslate2 runtime selection, CUDA/CPU fallbacks, clear
+  model/device logs, graceful dependency and microphone errors, and
+  hardware-independent tests.
 
 ## Current architecture
 
 ```text
-manual_asr or future ASR -> /asr/transcript -> nlu_node -> Rasa /model/parse
-                                               |-> /tts/speak -> tts_node
-                                               |                   `-> backend
-                                               `-> generated XML
-                                                   |-> /hsm/xml -> mock_hsm
-                                                   `-> action -> mock_hsm_action
+microphone -> faster_whisper_asr --+
+                                   |-> /asr/transcript -> nlu_node -> Rasa
+typed text -> manual_asr -----------+                      |-> TTS
+                                                           `-> HSM topic/action
 
 ```
 
@@ -116,7 +119,16 @@ ros2 run nlu_node mock_hsm_action
 ros2 run nlu_node nlu_node --ros-args -p hsm_mode:=action
 ```
 
-### Manual ASR tests
+### ASR tests
+
+Real microphone ASR uses the system Python user-site dependencies documented in
+`RUNNING.md`. Start it separately from the bringup launch:
+
+```bash
+ros2 run asr_node faster_whisper_asr
+```
+
+The unchanged manual fallback remains available:
 
 Interactive:
 
@@ -139,15 +151,17 @@ Run tests:
 cd /techfak/user/skochhar/bimanual-robot-speech-system/ros2_ws
 source /opt/ros/jazzy/setup.bash
 colcon test --packages-select \
-  hsm_interfaces nlu_node speech_bringup tts_node \
+  asr_node hsm_interfaces nlu_node speech_bringup tts_node \
   --event-handlers console_direct+
 colcon test-result --verbose
 ```
 
 ## Current limitations
 
-- ASR is manual; no microphone or speech recognition is connected.
+- Microphone ASR uses fixed 5-second windows and publishes final text only.
 - Voice activity detection (VAD) is not implemented.
+- The GTX 1060 uses CUDA `int8_float32`; it does not expose FP16 through
+  CTranslate2.
 - TTS audio depends on an installed lightweight command; otherwise it falls
   back to logging.
 - Kokoro is not integrated and remains an optional future backend.
@@ -161,8 +175,8 @@ colcon test-result --verbose
 
 ## Next work
 
-1. Integrate the teammate's real ASR while preserving `/asr/transcript`.
-2. Add VAD for microphone input and utterance boundaries.
+1. Add VAD for microphone input and utterance boundaries.
+2. Add incremental/streaming transcript feedback if required.
 3. Replace the mock action server with the real robot HSM and validate its
    action/XML contract.
 4. Replace the placeholder pointing timestamp with real pointing data.

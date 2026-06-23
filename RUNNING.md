@@ -1,8 +1,8 @@
 # Running the ROS 2 Speech System
 
-The current ROS 2 Jazzy demonstration uses manual text in place of real ASR.
-Rasa remains a separate HTTP NLU service. TTS is modular, and the HSM can use
-the compatibility topic or the mock action interface.
+The ROS 2 Jazzy system accepts microphone input through Faster-Whisper or typed
+input through `manual_asr`. Rasa remains a separate HTTP NLU service. TTS is
+modular, and the HSM uses either the compatibility topic or mock action.
 
 ## 1. Start Rasa
 
@@ -337,7 +337,92 @@ See `DEMO.md` for the short professor demonstration sequence.
 
 ## Current integration boundary
 
-A future ASR node replaces `manual_asr` by publishing recognized final text as
-`std_msgs/msg/String` on `/asr/transcript`. Partial and final hypotheses can be
-represented later with a custom transcript message; no such custom message is
-required for the current demonstration.
+Both ASR paths publish final text as `std_msgs/msg/String` on
+`/asr/transcript`. Partial and final hypotheses can be represented later with a
+custom transcript message; no such custom message is required now.
+
+## Phase 7: Faster-Whisper microphone ASR
+
+The ASR node runs with ROS Jazzy's system Python 3.12, not the Rasa conda
+environment. Install its Python dependencies once, without sudo:
+
+```bash
+conda deactivate
+cd /techfak/user/skochhar/bimanual-robot-speech-system
+/usr/bin/python3 -m pip install --user --break-system-packages \
+  -r ros2_ws/src/asr_node/requirements-asr.txt
+```
+
+This installs Faster-Whisper and user-space CUDA libraries but does not download
+a Whisper model. On first startup, `medium` downloads about 1.6 GB; `small`
+downloads about 500 MB; `base` downloads about 150 MB.
+
+Expose the pip-installed CUDA libraries in every ASR terminal:
+
+```bash
+export LD_LIBRARY_PATH="$(
+  /usr/bin/python3 -c \
+  'import nvidia.cublas.lib, nvidia.cudnn.lib; print(next(iter(nvidia.cublas.lib.__path__)) + ":" + next(iter(nvidia.cudnn.lib.__path__)))'
+):${LD_LIBRARY_PATH:-}"
+```
+
+On the lab GTX 1060, CTranslate2 supports `int8_float32` rather than `float16`.
+Automatic mode therefore selects `medium`, CUDA, `int8_float32`. Newer GPUs
+that expose FP16 automatically select `medium`, CUDA, `float16`. If CUDA is
+unavailable, automatic mode selects `small`, CPU, `int8`.
+
+Check the microphone independently:
+
+```bash
+arecord -D default -f S16_LE -r 16000 -c 1 -d 3 /tmp/asr-test.wav
+aplay /tmp/asr-test.wav
+```
+
+Run the real ASR node in a sourced ROS terminal:
+
+```bash
+source /opt/ros/jazzy/setup.bash
+source /techfak/user/skochhar/bimanual-robot-speech-system/ros2_ws/install/setup.bash
+ros2 run asr_node faster_whisper_asr
+```
+
+The node continuously records 5-second mono windows, ignores very quiet audio,
+and publishes each final transcript to `/asr/transcript`. Verify it separately:
+
+```bash
+ros2 topic echo /asr/transcript
+```
+
+Use the smaller CUDA model if medium latency is too high:
+
+```bash
+ros2 run asr_node faster_whisper_asr --ros-args \
+  -p model_size:=small
+```
+
+Force CPU mode when testing without CUDA:
+
+```bash
+ros2 run asr_node faster_whisper_asr --ros-args \
+  -p model_size:=small -p device:=cpu -p compute_type:=int8
+```
+
+Select a non-default microphone by PyAudio device index:
+
+```bash
+/usr/bin/python3 - <<'PY'
+import pyaudio
+p = pyaudio.PyAudio()
+for index in range(p.get_device_count()):
+    info = p.get_device_info_by_index(index)
+    if info.get('maxInputChannels', 0) > 0:
+        print(index, info['name'])
+p.terminate()
+PY
+
+ros2 run asr_node faster_whisper_asr --ros-args \
+  -p input_device_index:=4
+```
+
+`manual_asr` remains available and unchanged when microphone capture or model
+loading is unavailable.
