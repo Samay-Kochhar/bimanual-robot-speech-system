@@ -17,9 +17,21 @@ SUPPORTED_INTENTS = frozenset(REQUIRED)
 
 FALLBACK_RESPONSE = 'Sorry, I did not understand a supported robot command.'
 
+CANONICAL_RELATIONS = frozenset({
+    'in',
+    'on',
+    'left',
+    'right',
+    'front',
+    'behind',
+})
+
 RELATION_ALIASES = {
     'in': 'in',
     'into': 'in',
+    'into the': 'in',
+    'inside': 'in',
+    'inside of': 'in',
     'on': 'on',
     'onto': 'on',
     'on top of': 'on',
@@ -31,6 +43,7 @@ RELATION_ALIASES = {
     'to the right of': 'right',
     'front': 'front',
     'front of': 'front',
+    'in front': 'front',
     'in front of': 'front',
     'behind': 'behind',
 }

@@ -8,6 +8,7 @@ from std_msgs.msg import String
 from .command_logic import (
     interpret_nlu,
     object_description,
+    put_confirmation_relation_phrase,
     validate_command,
 )
 from .hsm_transport import (
@@ -216,9 +217,12 @@ class NLUNode(Node):
                 command.target,
                 command.relation,
             )
+            relation_phrase = put_confirmation_relation_phrase(
+                command.relation
+            )
             response = (
                 f'Okay. Putting {object_description(command.source)} '
-                f'{command.relation} {object_description(command.target)}.'
+                f'{relation_phrase} {object_description(command.target)}.'
             )
             self.dispatch_hsm(xml, response, 'PUT')
             return
