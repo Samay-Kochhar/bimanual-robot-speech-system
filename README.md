@@ -1,67 +1,35 @@
 # Bimanual Robot Speech System
 
-This repository contains a modular ROS 2 Jazzy speech-command pipeline for a
-bimanual robot. It supports microphone transcription with Faster-Whisper or
-typed fallback transcripts, while the HSM components remain mocks until the
-real robot controller is connected.
+This project is a ROS 2 speech-command pipeline for a bimanual robot. A user can
+speak or type a command such as "put the red apple into the blue bowl". The
+system turns that command into structured XML and sends it to a mock robot HSM
+interface.
 
-## Architecture
+The real robot HSM is not connected yet. The current HSM transport is mocked for
+safe testing and demos.
 
-```text
-microphone -> faster_whisper_asr ----+
-                                     |-> /asr/transcript (String)
-typed text -> manual_asr ------------+             |
-                                                   v
-           nlu_node -------- HTTP --------> Rasa /model/parse
-              |                                 |
-              |<-------- intent/entities -------'
-              |
-              +----> /tts/speak ----> tts_node ----> print/command backend
-              |
-              `----> generated XML
-                       |---- topic mode:  /hsm/xml ------------> mock_hsm
-                       `---- action mode: /hsm/execute_user_task -> mock_hsm_action
-```
+## What works now
 
-The `speech_bringup` package provides separate launch files for the complete
-topic-mode and action-mode demo stacks.
+- ROS 2 Jazzy modular pipeline.
+- Faster-Whisper microphone ASR on the lab GTX 1060 using CUDA,
+  `model_size=medium`, and `compute_type=int8_float32`.
+- Manual ASR fallback for typed test commands.
+- Push-to-talk ASR mode for demos.
+- Rasa HTTP NLU parsing through `http://localhost:5005/model/parse`.
+- Supported robot commands: `put`, `give`, and `stop`.
+- XML generation for executable commands.
+- Mock HSM ROS 2 action transport.
+- Modular TTS node; demo launch uses print-mode TTS.
+- Live-tested relations: `in`, `on`, `left`, `right`, `front`, `behind`.
+- Placeholder `pointingTime="1"` for `this` and `that`.
+- Selected ROS tests: 70 tests, 0 errors, 0 failures, 3 skipped.
 
-## Components
+## Quick Start
 
-- `faster_whisper_asr`: records fixed microphone windows, transcribes them with
-  Faster-Whisper, and publishes final text to `/asr/transcript`.
-- `manual_asr`: unchanged typed fallback publisher for testing without audio or
-  a downloaded ASR model.
-- `nlu_node`: the Rasa/XML brain. It calls Rasa at `/model/parse`, validates the
-  interpreted command, asks clarification questions when required information
-  is missing, generates XML, and selects the configured HSM transport.
-- `tts_node`: subscribes to `/tts/speak` and delegates output to a replaceable
-  print or command-line TTS backend. Kokoro is an optional future extension.
-- `mock_hsm`: compatibility subscriber that receives and logs XML from the
-  `/hsm/xml` topic.
-- `mock_hsm_action`: mock ROS 2 action server that receives XML goals and
-  returns feedback and a success result without controlling a robot.
-- `hsm_interfaces`: defines `ExecuteUserTask.action` with an XML goal,
-  success/message result, and status feedback.
-- `speech_bringup`: starts the NLU, print-mode TTS, and the matching mock HSM
-  for topic or action mode.
+Use separate terminals. Rasa runs in its conda environment; ROS runs with system
+Python 3.12.
 
-## HSM transport modes
-
-Topic mode is the default and preserves the existing `/hsm/xml`
-`std_msgs/msg/String` interface. Action mode sends the same XML through
-`/hsm/execute_user_task` using `hsm_interfaces/action/ExecuteUserTask`.
-
-The mode is controlled by the NLU parameter `hsm_mode`:
-
-```bash
-ros2 run nlu_node nlu_node --ros-args -p hsm_mode:=topic
-ros2 run nlu_node nlu_node --ros-args -p hsm_mode:=action
-```
-
-## Quick demo
-
-Start Rasa in the existing environment:
+### Terminal 1: start Rasa
 
 ```bash
 conda activate rasa
@@ -69,7 +37,9 @@ cd /techfak/user/skochhar/bimanual-robot-speech-system/rasa
 rasa run --enable-api --port 5005
 ```
 
-Build the ROS 2 Jazzy workspace:
+Leave this terminal running.
+
+### Terminal 2: build and launch ROS action demo
 
 ```bash
 cd /techfak/user/skochhar/bimanual-robot-speech-system/ros2_ws
@@ -78,62 +48,195 @@ colcon build --packages-select \
   asr_node hsm_interfaces nlu_node speech_bringup tts_node \
   --cmake-args -DPython3_EXECUTABLE=/usr/bin/python3
 source install/setup.bash
-```
-
-Topic mode:
-
-```bash
-ros2 launch speech_bringup topic_demo.launch.py
-ros2 run asr_node manual_asr "put the red apple in the blue bowl"
-```
-
-Action mode:
-
-```bash
 ros2 launch speech_bringup action_demo.launch.py
-ros2 run asr_node manual_asr "give one blue block"
 ```
 
-Clarification and stop examples:
+This starts:
+
+- `nlu_node`
+- `tts_node` in print mode
+- `mock_hsm_action`
+
+### Terminal 3: send manual ASR commands
 
 ```bash
+source /opt/ros/jazzy/setup.bash
+source /techfak/user/skochhar/bimanual-robot-speech-system/ros2_ws/install/setup.bash
+ros2 run asr_node manual_asr "put the red apple into the blue bowl"
+```
+
+More test commands:
+
+```bash
+ros2 run asr_node manual_asr "give me the red apple"
+ros2 run asr_node manual_asr "put the red block to the left of the green cube"
 ros2 run asr_node manual_asr "put the red apple"
 ros2 run asr_node manual_asr "stop"
 ```
 
-Run the launch command and each manual-ASR command in separate terminals, with
-ROS and the workspace sourced in every ROS terminal. See [DEMO.md](DEMO.md) for
-the presentation sequence and [RUNNING.md](RUNNING.md) for complete setup,
-testing, and troubleshooting commands.
+Expected behavior:
 
-## ASR integration
+- Complete commands produce TTS confirmation and XML sent to the mock HSM action.
+- Missing information produces a clarification question and no XML.
+- Unsupported commands produce a fallback response and no XML.
 
-The real ASR node and `manual_asr` publish the same `std_msgs/msg/String`
-interface, so the NLU, TTS, and HSM components are independent of the input
-source. The current microphone node records fixed-duration windows and emits
-final transcripts only. A later custom transcript message can distinguish
-partial and final hypotheses and carry additional metadata.
+### Optional Terminal 4: GPU push-to-talk ASR
+
+Run this instead of manual ASR when the microphone and CUDA environment are ready:
+
+```bash
+export LD_LIBRARY_PATH="$HOME/.local/lib/python3.12/site-packages/nvidia/cublas/lib:$HOME/.local/lib/python3.12/site-packages/nvidia/cudnn/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+source /opt/ros/jazzy/setup.bash
+source /techfak/user/skochhar/bimanual-robot-speech-system/ros2_ws/install/setup.bash
+ros2 run asr_node faster_whisper_asr --ros-args \
+  -p mode:=push_to_talk \
+  -p model_size:=medium \
+  -p device:=cuda \
+  -p compute_type:=int8_float32
+```
+
+Press Enter to start recording, speak one command, then press Enter again to
+stop and transcribe. The node publishes one final transcript to
+`/asr/transcript` and waits for the next command.
+
+For CUDA troubleshooting and dependency setup, see [RUNNING.md](RUNNING.md).
+
+## Architecture
+
+```text
+microphone -> faster_whisper_asr --+
+                                   |
+typed text -> manual_asr ----------+--> /asr/transcript
+                                        |
+                                        v
+                                     nlu_node ---- HTTP ----> Rasa
+                                        |
+                    +-------------------+-------------------+
+                    |                                       |
+                    v                                       v
+                /tts/speak                           XML user_task
+                    |                                       |
+                    v                                       v
+                 tts_node                 /hsm/execute_user_task action
+                                                      |
+                                                      v
+                                               mock_hsm_action
+```
+
+## Supported commands
+
+### Put
+
+Examples:
+
+```text
+put the red apple into the blue bowl
+put the long red apple into the small blue bowl
+put the green block on the yellow box
+put the red block to the left of the green cube
+put the red block in front of the green cube
+put this object in the box
+```
+
+Supported relations:
+
+```text
+in, on, left, right, front, behind
+```
+
+### Give
+
+Examples:
+
+```text
+give me the red apple
+give one blue block
+give me this object
+give me that long tube
+```
+
+### Stop
+
+Examples:
+
+```text
+stop
+halt
+abort
+cancel that
+```
+
+## XML example
+
+Input:
+
+```text
+put the red apple into the blue bowl
+```
+
+Generated XML shape:
+
+```xml
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<user_task type="put" armPref="">
+  <object>
+    <resolve_request count="the" class="apple" color="red" elongated="" pointingTime="0" size="" xpos="" ypos="" />
+  </object>
+  <target relation="in">
+    <resolve_request count="the" class="bowl" color="blue" elongated="" pointingTime="0" size="" xpos="" ypos="" />
+  </target>
+  <STATUS origin="Submitter" value="initiated" />
+</user_task>
+```
+
+For commands using `this` or `that`, `pointingTime` is currently a placeholder:
+
+```text
+pointingTime="1"
+```
+
+Real pointing timestamps are future work.
+
+## Main ROS interfaces
+
+| Interface | Type | Purpose |
+|---|---|---|
+| `/asr/transcript` | `std_msgs/msg/String` | Final ASR text into NLU. |
+| `/tts/speak` | `std_msgs/msg/String` | Text that should be spoken or printed. |
+| `/hsm/execute_user_task` | `hsm_interfaces/action/ExecuteUserTask` | Mock HSM action receiving XML goals. |
+| `/hsm/xml` | `std_msgs/msg/String` | Compatibility topic mode for XML. |
+
+## Run tests
+
+```bash
+cd /techfak/user/skochhar/bimanual-robot-speech-system/ros2_ws
+source /opt/ros/jazzy/setup.bash
+source install/setup.bash
+colcon test --packages-select \
+  asr_node hsm_interfaces nlu_node speech_bringup tts_node \
+  --event-handlers console_direct+
+colcon test-result --verbose
+```
+
+Current selected result:
+
+```text
+70 tests, 0 errors, 0 failures, 3 skipped
+```
 
 ## Current limitations
 
-- ASR uses fixed recording windows and final transcripts only.
-- Voice activity detection (VAD) is not implemented.
-- The first ASR run downloads the selected model; medium is about 1.6 GB and
-  small is about 500 MB.
-- Both HSM implementations are mocks; no real robot HSM is connected.
-- `this` and `that` use a nonzero placeholder `pointingTime` value.
-- ROS topic payloads use `std_msgs/msg/String`; richer custom messages can be
-  introduced later.
-- TTS audio requires a supported local command; print mode always remains
-  available.
+- The real robot HSM is not connected; HSM behavior is mocked.
+- `pointingTime` for `this` and `that` is a placeholder.
+- ASR publishes final transcripts only; no partial transcript messages yet.
+- Voice activity detection is not implemented yet.
+- ROS speech topics currently use `std_msgs/msg/String`.
+- Rasa training data is still small and should be expanded with more real speech
+  examples.
+- Plural object normalization is not implemented.
 
-## Next work
+## More documentation
 
-1. Add VAD around microphone capture and final-transcript publication.
-2. Add incremental/streaming ASR feedback if required.
-3. Connect and validate the real robot HSM action server.
-4. Replace the placeholder pointing timestamp with real pointing data.
-5. Optionally add custom ROS messages/actions for partial transcripts and richer
-   feedback.
-
-Current implementation status is summarized in [PROGRESS.md](PROGRESS.md).
+- [RUNNING.md](RUNNING.md): detailed setup, CUDA, ASR, build, and troubleshooting.
+- [DEMO.md](DEMO.md): short demo sequence for presentation.
+- [PROGRESS.md](PROGRESS.md): implementation history and current status.
